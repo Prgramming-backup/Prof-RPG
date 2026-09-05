@@ -1,0 +1,88 @@
+import '../models/task.dart';
+
+abstract class TaskRepository {
+  List<Task> getAll();
+
+  Task create({
+    required String title,
+    String? description,
+    required int xpReward,
+    DateTime? dueDate,
+  });
+
+  Task update(Task task);
+
+  Task complete(String id);
+
+  void delete(String id);
+}
+
+class InMemoryTaskRepository implements TaskRepository {
+  InMemoryTaskRepository({List<Task>? seed}) {
+    if (seed != null) {
+      _tasks.addAll(seed);
+    }
+  }
+
+  final List<Task> _tasks = [];
+  int _nextId = 1;
+
+  @override
+  List<Task> getAll() => List.unmodifiable(_tasks);
+
+  @override
+  Task create({
+    required String title,
+    String? description,
+    required int xpReward,
+    DateTime? dueDate,
+  }) {
+    final task = Task(
+      id: 'task_${_nextId++}',
+      title: title,
+      description: description,
+      xpReward: xpReward,
+      dueDate: dueDate,
+      createdAt: DateTime.now(),
+    );
+    _tasks.add(task);
+    return task;
+  }
+
+  @override
+  Task update(Task task) {
+    final index = _indexOf(task.id);
+    _tasks[index] = task;
+    return task;
+  }
+
+  @override
+  Task complete(String id) {
+    final index = _indexOf(id);
+    final current = _tasks[index];
+    if (current.isCompleted) {
+      return current;
+    }
+
+    final completed = current.copyWith(
+      isCompleted: true,
+      completedAt: DateTime.now(),
+    );
+    _tasks[index] = completed;
+    return completed;
+  }
+
+  @override
+  void delete(String id) {
+    final index = _indexOf(id);
+    _tasks.removeAt(index);
+  }
+
+  int _indexOf(String id) {
+    final index = _tasks.indexWhere((task) => task.id == id);
+    if (index < 0) {
+      throw StateError('Task not found: $id');
+    }
+    return index;
+  }
+}
