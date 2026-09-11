@@ -32,6 +32,10 @@ void main() {
     expect(completed.completedAt, isNotNull);
     expect(completed.xpReward, 10);
     expect(repository.complete(created.id).id, created.id);
+
+    final reopened = repository.uncomplete(created.id);
+    expect(reopened.isCompleted, isFalse);
+    expect(reopened.completedAt, isNull);
   });
 
   test('updates and deletes a task', () {
@@ -49,6 +53,7 @@ void main() {
 
   test('throws when the task does not exist', () {
     expect(() => repository.complete('missing'), throwsStateError);
+    expect(() => repository.uncomplete('missing'), throwsStateError);
     expect(() => repository.delete('missing'), throwsStateError);
   });
 }

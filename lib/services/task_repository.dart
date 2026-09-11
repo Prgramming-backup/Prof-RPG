@@ -14,6 +14,8 @@ abstract class TaskRepository {
 
   Task complete(String id);
 
+  Task uncomplete(String id);
+
   void delete(String id);
 }
 
@@ -70,6 +72,22 @@ class InMemoryTaskRepository implements TaskRepository {
     );
     _tasks[index] = completed;
     return completed;
+  }
+
+  @override
+  Task uncomplete(String id) {
+    final index = _indexOf(id);
+    final current = _tasks[index];
+    if (!current.isCompleted) {
+      return current;
+    }
+
+    final reopened = current.copyWith(
+      isCompleted: false,
+      clearCompletedAt: true,
+    );
+    _tasks[index] = reopened;
+    return reopened;
   }
 
   @override
