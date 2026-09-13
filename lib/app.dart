@@ -75,7 +75,7 @@ class _ProRpgAppState extends State<ProRpgApp> {
     return TaskScope(
       controller: _taskController,
       child: MaterialApp(
-        title: 'Pro-RPG',
+        title: 'QuestForge',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.light,
         darkTheme: AppTheme.dark,

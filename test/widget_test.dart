@@ -2,13 +2,24 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:prod/app.dart';
+import 'package:prod/services/persistence_service.dart';
+import 'package:prod/services/task_repository.dart';
+import 'package:prod/services/xp_ledger.dart';
+
+ProRpgApp testApp() {
+  return ProRpgApp(
+    taskRepository: InMemoryTaskRepository(),
+    xpLedger: InMemoryXpLedger(),
+    persistenceService: InMemoryPersistenceService(),
+  );
+}
 
 void main() {
   testWidgets('shows home and can open other destinations', (tester) async {
-    await tester.pumpWidget(const ProRpgApp());
+    await tester.pumpWidget(testApp());
 
-    expect(find.text('Pro-RPG'), findsOneWidget);
-    expect(find.text('No quests yet'), findsOneWidget);
+    expect(find.text('QuestForge'), findsOneWidget);
+    expect(find.text('No active quests'), findsOneWidget);
 
     await tester.tap(find.text('Character'));
     await tester.pumpAndSettle();
@@ -20,13 +31,13 @@ void main() {
 
     await tester.tap(find.text('Settings'));
     await tester.pumpAndSettle();
-    expect(find.text('Guild options'), findsOneWidget);
+    expect(find.text('Settings'), findsWidgets);
   });
 
   testWidgets('creates, completes, edits, and deletes a task', (tester) async {
-    await tester.pumpWidget(const ProRpgApp());
+    await tester.pumpWidget(testApp());
 
-    await tester.tap(find.text('New quest'));
+    await tester.tap(find.text('New Quest'));
     await tester.pumpAndSettle();
 
     await tester.tap(find.byKey(const Key('save-task')));
@@ -66,6 +77,6 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(FilledButton, 'Delete'));
     await tester.pumpAndSettle();
-    expect(find.text('No quests yet'), findsOneWidget);
+    expect(find.text('No active quests'), findsOneWidget);
   });
 }

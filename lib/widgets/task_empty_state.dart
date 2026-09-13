@@ -16,27 +16,25 @@ class TaskEmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.auto_awesome, size: 40, color: colors.primary),
-            const SizedBox(height: 16),
             Text(
-              'No quests yet',
+              'No active quests',
               style: theme.textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.w700,
               ),
             ),
             const SizedBox(height: 8),
             Text(
-              'Create a productivity quest to start your adventure board.',
+              'Your next adventure starts here.',
               textAlign: TextAlign.center,
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: colors.onSurfaceVariant,
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
             FilledButton.icon(
               onPressed: onCreate,
               icon: const Icon(Icons.add),
-              label: const Text('New quest'),
+              label: const Text('New Quest'),
             ),
           ],
         ),
