@@ -42,7 +42,6 @@ class CharacterScreen extends StatelessWidget {
             _SectionCard(
               children: [
                 _SectionTitle(
-                  icon: Icons.auto_awesome,
                   label: 'Avatar Evolution',
                   colors: colors,
                   theme: theme,
@@ -61,7 +60,6 @@ class CharacterScreen extends StatelessWidget {
             _SectionCard(
               children: [
                 _SectionTitle(
-                  icon: Icons.bolt,
                   label: 'Experience',
                   colors: colors,
                   theme: theme,
@@ -280,13 +278,13 @@ class _SectionCard extends StatelessWidget {
 
 class _SectionTitle extends StatelessWidget {
   const _SectionTitle({
-    required this.icon,
+    this.icon,
     required this.label,
     required this.colors,
     required this.theme,
   });
 
-  final IconData icon;
+  final IconData? icon;
   final String label;
   final ColorScheme colors;
   final ThemeData theme;
@@ -295,13 +293,16 @@ class _SectionTitle extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, size: 20, color: colors.primary),
-        const SizedBox(width: 8),
+        if (icon != null) ...[
+          Icon(icon, size: 20, color: colors.primary),
+          const SizedBox(width: 8),
+        ],
         Text(
           label,
           style: theme.textTheme.titleMedium?.copyWith(
             fontWeight: FontWeight.w700,
             color: colors.onSurface,
+            letterSpacing: 0.2,
           ),
         ),
       ],

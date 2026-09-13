@@ -73,13 +73,13 @@ class HomeScreen extends StatelessWidget {
     final colors = theme.colorScheme;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Pro-RPG')),
+      appBar: AppBar(title: const Text('QuestForge')),
       floatingActionButton: controller.isEmpty
           ? null
           : FloatingActionButton.extended(
               onPressed: () => _openEditor(context),
               icon: const Icon(Icons.add),
-              label: const Text('New quest'),
+              label: const Text('New Quest'),
             ),
       body: SafeArea(
         child: controller.isEmpty

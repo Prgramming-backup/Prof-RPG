@@ -53,7 +53,7 @@ class AvatarTierDefinition {
   /// Primary icon representing this avatar tier visually.
   final IconData icon;
 
-  /// Short badge symbol/emoji representing this tier.
+  /// Optional short badge marker for this tier (legacy; UI uses character art).
   final String badgeSymbol;
 
   /// Gradient colors for the avatar's circular backdrop.
