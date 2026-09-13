@@ -1,0 +1,116 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+import 'package:prod/services/task_repository.dart';
+import 'package:prod/state/task_controller.dart';
+import 'package:prod/state/task_scope.dart';
+import 'package:prod/screens/character_screen.dart';
+
+/// Pumps a [CharacterScreen] inside a minimal app with a [TaskScope] wired
+/// to the given [controller].
+Future<void> pumpCharacterScreen(
+  WidgetTester tester,
+  TaskController controller,
+) async {
+  await tester.pumpWidget(
+    TaskScope(
+      controller: controller,
+      child: const MaterialApp(home: CharacterScreen()),
+    ),
+  );
+}
+
+void main() {
+  testWidgets('displays level 1 and 0 XP for a fresh player', (tester) async {
+    final controller = TaskController(InMemoryTaskRepository());
+    await pumpCharacterScreen(tester, controller);
+
+    expect(find.text('Level 1'), findsOneWidget);
+    expect(find.text('0 XP earned'), findsOneWidget);
+    expect(find.text('100 XP to level 2'), findsOneWidget);
+    expect(find.text('0 / 100 XP'), findsOneWidget);
+    expect(find.text('0.0%'), findsOneWidget);
+  });
+
+  testWidgets('displays streak info for a fresh player', (tester) async {
+    final controller = TaskController(InMemoryTaskRepository());
+    await pumpCharacterScreen(tester, controller);
+
+    expect(find.text('0'), findsOneWidget); // streak length
+    expect(find.text('days'), findsOneWidget);
+    expect(find.text('×1.00'), findsOneWidget); // multiplier
+  });
+
+  testWidgets('reacts to XP changes after completing a task', (tester) async {
+    final now = DateTime(2026, 9, 12, 10, 0);
+    final controller = TaskController(
+      InMemoryTaskRepository(),
+      clock: () => now,
+    );
+
+    controller.createTask(title: 'Read a book', xpReward: 50);
+    final task = controller.activeTasks.first;
+    controller.completeTask(task.id, completedAt: now);
+
+    await pumpCharacterScreen(tester, controller);
+
+    // 50 XP with 1.0× multiplier = 50 XP total → still level 1
+    expect(find.text('Level 1'), findsOneWidget);
+    expect(find.text('50 XP earned'), findsOneWidget);
+    expect(find.text('50 / 100 XP'), findsOneWidget);
+    expect(find.text('50.0%'), findsOneWidget);
+    expect(find.text('50 XP to level 2'), findsOneWidget);
+  });
+
+  testWidgets('reaches level 2 after earning 100+ XP', (tester) async {
+    final now = DateTime(2026, 9, 12, 10, 0);
+    final controller = TaskController(
+      InMemoryTaskRepository(),
+      clock: () => now,
+    );
+
+    controller.createTask(title: 'Task A', xpReward: 60);
+    controller.createTask(title: 'Task B', xpReward: 60);
+
+    final taskA = controller.activeTasks.first;
+    final taskB = controller.activeTasks.last;
+
+    controller.completeTask(taskA.id, completedAt: now);
+    controller.completeTask(taskB.id, completedAt: now);
+
+    await pumpCharacterScreen(tester, controller);
+
+    // 60 + 60 = 120 XP → level 2 (threshold at 100 XP)
+    expect(find.text('Level 2'), findsOneWidget);
+    expect(find.text('120 XP earned'), findsOneWidget);
+  });
+
+  testWidgets('streak badge shows singular "day" for streak of 1',
+      (tester) async {
+    final now = DateTime(2026, 9, 12, 10, 0);
+    final controller = TaskController(
+      InMemoryTaskRepository(),
+      clock: () => now,
+    );
+
+    controller.createTask(title: 'Task', xpReward: 10);
+    controller.completeTask(
+      controller.activeTasks.first.id,
+      completedAt: now,
+    );
+
+    await pumpCharacterScreen(tester, controller);
+
+    expect(find.text('1'), findsOneWidget);
+    expect(find.text('day'), findsOneWidget);
+  });
+
+  testWidgets('player avatar renders with correct level badge',
+      (tester) async {
+    final controller = TaskController(InMemoryTaskRepository());
+    await pumpCharacterScreen(tester, controller);
+
+    // The avatar shows "Lv 1" badge
+    expect(find.text('Lv 1'), findsOneWidget);
+  });
+}

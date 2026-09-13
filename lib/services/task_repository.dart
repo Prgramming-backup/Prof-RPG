@@ -12,7 +12,7 @@ abstract class TaskRepository {
 
   Task update(Task task);
 
-  Task complete(String id);
+  Task complete(String id, {DateTime? completedAt});
 
   Task uncomplete(String id);
 
@@ -20,12 +20,14 @@ abstract class TaskRepository {
 }
 
 class InMemoryTaskRepository implements TaskRepository {
-  InMemoryTaskRepository({List<Task>? seed}) {
+  InMemoryTaskRepository({List<Task>? seed, DateTime Function()? clock})
+    : _clock = clock ?? DateTime.now {
     if (seed != null) {
       _tasks.addAll(seed);
     }
   }
 
+  final DateTime Function() _clock;
   final List<Task> _tasks = [];
   int _nextId = 1;
 
@@ -45,7 +47,7 @@ class InMemoryTaskRepository implements TaskRepository {
       description: description,
       xpReward: xpReward,
       dueDate: dueDate,
-      createdAt: DateTime.now(),
+      createdAt: _clock(),
     );
     _tasks.add(task);
     return task;
@@ -59,7 +61,7 @@ class InMemoryTaskRepository implements TaskRepository {
   }
 
   @override
-  Task complete(String id) {
+  Task complete(String id, {DateTime? completedAt}) {
     final index = _indexOf(id);
     final current = _tasks[index];
     if (current.isCompleted) {
@@ -68,7 +70,7 @@ class InMemoryTaskRepository implements TaskRepository {
 
     final completed = current.copyWith(
       isCompleted: true,
-      completedAt: DateTime.now(),
+      completedAt: completedAt ?? _clock(),
     );
     _tasks[index] = completed;
     return completed;

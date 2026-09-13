@@ -19,6 +19,8 @@ abstract class XpLedger {
     required String sourceTaskId,
     required int baseXp,
     required String completionId,
+    double multiplier = 1.0,
+    DateTime? timestamp,
   });
 
   XpTransaction? reverseForCompletion(String completionId);
@@ -54,11 +56,14 @@ class InMemoryXpLedger implements XpLedger {
     required String sourceTaskId,
     required int baseXp,
     required String completionId,
+    double multiplier = 1.0,
+    DateTime? timestamp,
   }) {
     final alreadyAwarded = _hasActiveAward(completionId);
     final decision = _engine.decide(
       baseXp: baseXp,
       alreadyAwardedForCompletion: alreadyAwarded,
+      multiplier: multiplier,
     );
 
     if (!decision.isAwarded) {
@@ -70,8 +75,9 @@ class InMemoryXpLedger implements XpLedger {
       sourceTaskId: sourceTaskId,
       completionId: completionId,
       baseXp: decision.baseXp,
+      multiplier: decision.multiplier,
       awardedXp: decision.awardedXp,
-      timestamp: _clock(),
+      timestamp: timestamp ?? _clock(),
     );
     _transactions.add(transaction);
     return XpAwardResult(decision: decision, transaction: transaction);

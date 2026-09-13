@@ -12,7 +12,7 @@ void main() {
 
     await tester.tap(find.text('Character'));
     await tester.pumpAndSettle();
-    expect(find.text('Hero sheet'), findsOneWidget);
+    expect(find.text('Level 1'), findsOneWidget);
 
     await tester.tap(find.text('Stats'));
     await tester.pumpAndSettle();
