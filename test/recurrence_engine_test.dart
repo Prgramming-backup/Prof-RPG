@@ -71,7 +71,7 @@ void main() {
   });
 
   test('side quests are completable until permanently finished', () {
-    const task = Task(
+    final task = Task(
       id: 'task_2',
       title: 'Clean my room',
       xpReward: 15,

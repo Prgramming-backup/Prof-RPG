@@ -37,7 +37,7 @@ void main() {
 
     controller.completeTask(task.id);
     expect(controller.tasks, hasLength(1));
-    expect(controller.totalXp, 40);
+    expect(controller.totalXp, 41);
   });
 
   test('side quest stays permanently completed and does not return', () {

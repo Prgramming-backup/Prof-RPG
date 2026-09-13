@@ -1,15 +1,21 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 
 import '../models/avatar_progression.dart';
 import '../models/avatar_tier.dart';
+import 'level_engine.dart';
 
-/// Pure, deterministic engine responsible for mapping player levels to
+/// Pure, deterministic engine responsible for mapping player levels and XP to
 /// avatar evolution tiers and calculating intra-tier progression.
 ///
 /// Holds all tier thresholds and title definitions in a centralized, easily
 /// modifiable registry.
 class AvatarEngine {
-  const AvatarEngine();
+  const AvatarEngine({
+    this.levelEngine = const LevelEngine(),
+  });
+
+  /// The level progression engine used to resolve level and XP boundaries.
+  final LevelEngine levelEngine;
 
   /// Centralized source of truth for all avatar tiers, their level boundaries,
   /// display titles, and visual characteristics.
@@ -219,14 +225,35 @@ class AvatarEngine {
     return tiers.firstWhere((def) => def.tier == tier);
   }
 
-  /// Computes the complete [AvatarProgression] for a player's [level].
+  /// Computes the complete [AvatarProgression] for a player.
   ///
-  /// - Negative or zero levels are defensively clamped to `1`.
-  /// - Progress within the current tier is computed strictly as:
-  ///   `(level - minLevel) / (maxLevel - minLevel)` clamped to `[0.0, 1.0]`.
-  /// - The final tier has no next tier and its progress is safely `1.0`.
-  AvatarProgression progressionFor(int level) {
-    final safeLevel = level < 1 ? 1 : level;
+  /// Avatar evolution progress is calculated from **XP**, not from level alone:
+  /// progress toward the next avatar evolution tier is computed as XP progress
+  /// through the current tier's level range:
+  /// `(XP earned since the start of the current tier's level range) / (total XP required to complete the current tier's level range)`.
+  ///
+  /// If [totalXp] is provided, it serves as the authoritative source of truth.
+  /// If only [level] is provided, XP is derived as the baseline XP for that level.
+  AvatarProgression progressionFor({
+    int? totalXp,
+    int? level,
+    LevelEngine? levelEngine,
+  }) {
+    final le = levelEngine ?? this.levelEngine;
+
+    final int safeXp;
+    final int safeLevel;
+
+    if (totalXp != null) {
+      safeXp = totalXp < 0 ? 0 : totalXp;
+      safeLevel = level ?? le.progressFor(safeXp).level;
+    } else if (level != null) {
+      safeLevel = level < 1 ? 1 : level;
+      safeXp = 0;
+    } else {
+      safeXp = 0;
+      safeLevel = 1;
+    }
 
     // Find the matching tier index
     var matchIndex = 0;
@@ -242,15 +269,40 @@ class AvatarEngine {
     final nextDef = hasNext ? tiers[matchIndex + 1] : null;
 
     final double progress;
+    final int? currentTierXp;
+    final int? tierTotalXp;
+
     if (currentDef.maxLevel == null) {
       // Final infinite tier (e.g. 500+)
       progress = 1.0;
-    } else if (currentDef.maxLevel == currentDef.minLevel) {
-      progress = 1.0;
+      currentTierXp = null;
+      tierTotalXp = null;
+    } else if (totalXp != null) {
+      // XP-based progression through the current tier's level range
+      final tierStartXp = le.xpToReachLevel(currentDef.minLevel);
+      final tierEndXp = le.xpToReachLevel(currentDef.maxLevel! + 1);
+      final span = tierEndXp - tierStartXp;
+
+      if (span <= 0) {
+        progress = 1.0;
+        currentTierXp = 0;
+        tierTotalXp = 0;
+      } else {
+        final earnedInTier = safeXp - tierStartXp;
+        progress = (earnedInTier / span).clamp(0.0, 1.0);
+        currentTierXp = earnedInTier.clamp(0, span);
+        tierTotalXp = span;
+      }
     } else {
-      final span = currentDef.maxLevel! - currentDef.minLevel;
-      final rawProgress = (safeLevel - currentDef.minLevel) / span;
-      progress = rawProgress.clamp(0.0, 1.0);
+      // Safe intra-tier progress fallback when totalXp is omitted (e.g. static widget previews)
+      if (currentDef.maxLevel == currentDef.minLevel) {
+        progress = 1.0;
+      } else {
+        final span = currentDef.maxLevel! - currentDef.minLevel;
+        progress = ((safeLevel - currentDef.minLevel) / span).clamp(0.0, 1.0);
+      }
+      currentTierXp = null;
+      tierTotalXp = null;
     }
 
     return AvatarProgression(
@@ -263,6 +315,13 @@ class AvatarEngine {
       nextTier: nextDef?.tier,
       nextTitle: nextDef?.title,
       definition: currentDef,
+      currentTierXp: currentTierXp,
+      tierTotalXp: tierTotalXp,
     );
+  }
+
+  /// Convenience method to compute [AvatarProgression] when only [level] is available.
+  AvatarProgression progressionForLevel(int level, {LevelEngine? levelEngine}) {
+    return progressionFor(level: level, levelEngine: levelEngine);
   }
 }

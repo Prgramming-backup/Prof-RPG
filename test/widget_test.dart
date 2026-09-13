@@ -27,7 +27,7 @@ void main() {
 
     await tester.tap(find.text('Stats'));
     await tester.pumpAndSettle();
-    expect(find.text('Campaign log'), findsOneWidget);
+    expect(find.text('Character Progression'), findsOneWidget);
 
     await tester.tap(find.text('Settings'));
     await tester.pumpAndSettle();

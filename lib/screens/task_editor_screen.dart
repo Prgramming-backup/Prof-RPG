@@ -207,7 +207,7 @@ class _TaskEditorScreenState extends State<TaskEditorScreen> {
                 const SizedBox(height: 8),
                 DropdownButtonFormField<RecurrenceKind>(
                   key: const Key('recurrence-kind-field'),
-                  value: _recurrenceKind,
+                  initialValue: _recurrenceKind,
                   decoration: const InputDecoration(
                     labelText: 'Recurrence',
                   ),
@@ -392,7 +392,7 @@ class _DayOfMonthPicker extends StatelessWidget {
   Widget build(BuildContext context) {
     return DropdownButtonFormField<int>(
       key: const Key('day-of-month-field'),
-      value: day,
+      initialValue: day,
       decoration: const InputDecoration(
         labelText: 'Day of month',
       ),

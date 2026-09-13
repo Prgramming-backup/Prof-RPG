@@ -133,6 +133,35 @@ class StreakEngine {
     ).streakLength;
   }
 
+  /// Calculates the all-time longest consecutive productive-day streak from [completionDates].
+  int calculateLongestStreak(Iterable<DateTime> completionDates) {
+    final uniqueDays = <CalendarDay>{};
+    for (final date in completionDates) {
+      uniqueDays.add(CalendarDay.from(date));
+    }
+
+    if (uniqueDays.isEmpty) {
+      return 0;
+    }
+
+    final sortedDays = uniqueDays.toList()..sort();
+    var longest = 1;
+    var current = 1;
+
+    for (var i = 1; i < sortedDays.length; i++) {
+      if (sortedDays[i] == sortedDays[i - 1].nextDay) {
+        current++;
+        if (current > longest) {
+          longest = current;
+        }
+      } else {
+        current = 1;
+      }
+    }
+
+    return longest;
+  }
+
   /// Returns whether [day] is a productive day having at least one completion.
   bool isProductiveDay({
     required Iterable<DateTime> completionDates,

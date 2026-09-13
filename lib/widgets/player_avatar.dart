@@ -38,7 +38,7 @@ class PlayerAvatar extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final currentProgression =
-        progression ?? const AvatarEngine().progressionFor(level);
+        progression ?? const AvatarEngine().progressionFor(level: level);
     final def = currentProgression.definition;
 
     final baseBorderColor =

@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../models/avatar_progression.dart';
+import '../models/player_stats.dart';
 import '../models/quest_type.dart';
 import '../models/recurrence_rule.dart';
 import '../models/task.dart';
@@ -8,6 +9,7 @@ import '../models/xp_transaction.dart';
 import '../services/avatar_engine.dart';
 import '../services/level_engine.dart';
 import '../services/recurrence_engine.dart';
+import '../services/statistics_service.dart';
 import '../services/streak_engine.dart';
 import '../services/task_repository.dart';
 import '../services/xp_completion_id.dart';
@@ -21,12 +23,14 @@ class TaskController extends ChangeNotifier {
     LevelEngine? levelEngine,
     AvatarEngine? avatarEngine,
     RecurrenceEngine? recurrenceEngine,
+    StatisticsService? statisticsService,
     DateTime Function()? clock,
   }) : _xpLedger = xpLedger ?? InMemoryXpLedger(),
        _streakEngine = streakEngine ?? const StreakEngine(),
        _levelEngine = levelEngine ?? const LevelEngine(),
        _avatarEngine = avatarEngine ?? const AvatarEngine(),
        _recurrenceEngine = recurrenceEngine ?? const RecurrenceEngine(),
+       _statisticsService = statisticsService ?? const StatisticsService(),
        _clock = clock ?? DateTime.now;
 
   final TaskRepository _repository;
@@ -35,6 +39,7 @@ class TaskController extends ChangeNotifier {
   final LevelEngine _levelEngine;
   final AvatarEngine _avatarEngine;
   final RecurrenceEngine _recurrenceEngine;
+  final StatisticsService _statisticsService;
   final DateTime Function() _clock;
 
   List<Task> get tasks => _repository.getAll();
@@ -66,7 +71,11 @@ class TaskController extends ChangeNotifier {
   LevelProgress get levelProgress => _levelEngine.progressFor(totalXp);
 
   AvatarProgression get avatarProgression =>
-      _avatarEngine.progressionFor(levelProgress.level);
+      _avatarEngine.progressionFor(
+        totalXp: totalXp,
+        level: levelProgress.level,
+        levelEngine: _levelEngine,
+      );
 
   List<XpTransaction> get xpTransactions => _xpLedger.transactions;
 
@@ -84,7 +93,17 @@ class TaskController extends ChangeNotifier {
 
   int get currentStreak => streakInfo().streakLength;
 
+  int get longestStreak =>
+      _streakEngine.calculateLongestStreak(_completionDates);
+
   double get currentMultiplier => streakInfo().currentMultiplier;
+
+  StatisticsData get statistics => _statisticsService.calculate(
+        tasks: tasks,
+        xpTransactions: xpTransactions,
+        totalXpOverride: totalXp,
+        now: _clock(),
+      );
 
   Task createTask({
     required String title,

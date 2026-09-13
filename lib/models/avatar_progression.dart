@@ -15,6 +15,8 @@ class AvatarProgression {
     this.nextTier,
     this.nextTitle,
     required this.definition,
+    this.currentTierXp,
+    this.tierTotalXp,
   }) : assert(progress >= 0.0 && progress <= 1.0, 'progress must be between 0.0 and 1.0');
 
   /// The player's current avatar tier identifier.
@@ -43,6 +45,12 @@ class AvatarProgression {
 
   /// Visual and thematic metadata for the current tier.
   final AvatarTierDefinition definition;
+
+  /// XP earned within the current tier's level range, or `null` if unbounded.
+  final int? currentTierXp;
+
+  /// Total XP required to complete the current tier's level range, or `null` if final tier.
+  final int? tierTotalXp;
 
   /// Whether there is another evolution stage beyond the current tier.
   bool get hasNextEvolution => nextTier != null;
