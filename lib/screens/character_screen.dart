@@ -188,7 +188,8 @@ class _AvatarEvolutionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final nextEvolution = progression.nextTitle;
-    final percent = (progression.progress * 100).toStringAsFixed(0);
+    final progress = progression.progress;
+    final percent = (progress * 100).toStringAsFixed(0);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -204,6 +205,7 @@ class _AvatarEvolutionCard extends StatelessWidget {
               ),
             ),
             Text(
+              key: const Key('avatar-evolution-percent'),
               '$percent%',
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: colors.primary,
@@ -213,16 +215,10 @@ class _AvatarEvolutionCard extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 10),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(6),
-          child: LinearProgressIndicator(
-            value: progression.progress,
-            minHeight: 12,
-            backgroundColor: colors.outlineVariant.withValues(alpha: 0.20),
-            valueColor: AlwaysStoppedAnimation<Color>(
-              progression.definition.gradientColors.first,
-            ),
-          ),
+        _AvatarEvolutionBar(
+          progress: progress,
+          color: progression.definition.gradientColors.first,
+          trackColor: colors.outlineVariant.withValues(alpha: 0.20),
         ),
         const SizedBox(height: 10),
         if (nextEvolution != null) ...[
@@ -253,6 +249,53 @@ class _AvatarEvolutionCard extends StatelessWidget {
           ),
         ],
       ],
+    );
+  }
+}
+
+class _AvatarEvolutionBar extends StatelessWidget {
+  const _AvatarEvolutionBar({
+    required this.progress,
+    required this.color,
+    required this.trackColor,
+  });
+
+  final double progress;
+  final Color color;
+  final Color trackColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final clamped = progress.clamp(0.0, 1.0);
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(6),
+      child: SizedBox(
+        key: const Key('avatar-evolution-track'),
+        height: 12,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return Stack(
+              children: [
+                DecoratedBox(
+                  decoration: BoxDecoration(color: trackColor),
+                  child: const SizedBox.expand(),
+                ),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(color: color),
+                    child: SizedBox(
+                      key: const Key('avatar-evolution-bar'),
+                      width: constraints.maxWidth * clamped,
+                      height: 12,
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+      ),
     );
   }
 }

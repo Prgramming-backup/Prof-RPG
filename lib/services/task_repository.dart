@@ -1,3 +1,5 @@
+import '../models/quest_type.dart';
+import '../models/recurrence_rule.dart';
 import '../models/task.dart';
 
 abstract class TaskRepository {
@@ -8,6 +10,8 @@ abstract class TaskRepository {
     String? description,
     required int xpReward,
     DateTime? dueDate,
+    QuestType questType = QuestType.sideQuest,
+    RecurrenceRule? recurrence,
   });
 
   Task update(Task task);
@@ -43,6 +47,8 @@ class InMemoryTaskRepository implements TaskRepository {
     String? description,
     required int xpReward,
     DateTime? dueDate,
+    QuestType questType = QuestType.sideQuest,
+    RecurrenceRule? recurrence,
   }) {
     final task = Task(
       id: 'task_${_nextId++}',
@@ -51,6 +57,10 @@ class InMemoryTaskRepository implements TaskRepository {
       xpReward: xpReward,
       dueDate: dueDate,
       createdAt: _clock(),
+      questType: questType,
+      recurrence: questType == QuestType.habit
+          ? (recurrence ?? RecurrenceRule.daily)
+          : null,
     );
     _tasks.add(task);
     return task;
@@ -67,13 +77,27 @@ class InMemoryTaskRepository implements TaskRepository {
   Task complete(String id, {DateTime? completedAt}) {
     final index = _indexOf(id);
     final current = _tasks[index];
+    final at = completedAt ?? _clock();
+
+    if (current.questType == QuestType.habit) {
+      if (current.hasCompletedOn(at)) {
+        return current;
+      }
+      final completed = current.copyWith(
+        completedAt: at,
+        completedDates: [...current.completedDates, at],
+      );
+      _tasks[index] = completed;
+      return completed;
+    }
+
     if (current.isCompleted) {
       return current;
     }
 
     final completed = current.copyWith(
       isCompleted: true,
-      completedAt: completedAt ?? _clock(),
+      completedAt: at,
     );
     _tasks[index] = completed;
     return completed;
@@ -83,6 +107,24 @@ class InMemoryTaskRepository implements TaskRepository {
   Task uncomplete(String id) {
     final index = _indexOf(id);
     final current = _tasks[index];
+
+    if (current.questType == QuestType.habit) {
+      if (current.completedDates.isEmpty) {
+        return current;
+      }
+      final remaining = current.completedDates.sublist(
+        0,
+        current.completedDates.length - 1,
+      );
+      final reopened = current.copyWith(
+        completedDates: remaining,
+        completedAt: remaining.isEmpty ? null : remaining.last,
+        clearCompletedAt: remaining.isEmpty,
+      );
+      _tasks[index] = reopened;
+      return reopened;
+    }
+
     if (!current.isCompleted) {
       return current;
     }

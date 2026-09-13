@@ -24,6 +24,8 @@ class HomeScreen extends StatelessWidget {
         description: draft.description,
         xpReward: draft.xpReward,
         dueDate: draft.dueDate,
+        questType: draft.questType,
+        recurrence: draft.recurrence,
       );
       return;
     }
@@ -36,6 +38,9 @@ class HomeScreen extends StatelessWidget {
         xpReward: draft.xpReward,
         dueDate: draft.dueDate,
         clearDueDate: draft.dueDate == null,
+        questType: draft.questType,
+        recurrence: draft.recurrence,
+        clearRecurrence: draft.recurrence == null,
       ),
     );
   }
@@ -95,7 +100,7 @@ class HomeScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Track real-life quests. Completing a task only updates its status for now.',
+                    'Track real-life quests. Habits return when they are due; side quests stay done.',
                     style: theme.textTheme.bodyLarge?.copyWith(
                       color: colors.onSurfaceVariant,
                     ),
@@ -115,6 +120,8 @@ class HomeScreen extends StatelessWidget {
                         padding: const EdgeInsets.only(bottom: 12),
                         child: TaskTile(
                           task: task,
+                          canComplete: controller.canComplete(task),
+                          isComplete: false,
                           onComplete: () => controller.completeTask(task.id),
                           onEdit: () => _openEditor(context, task: task),
                           onDelete: () => _confirmDelete(context, task),
@@ -137,6 +144,8 @@ class HomeScreen extends StatelessWidget {
                         padding: const EdgeInsets.only(bottom: 12),
                         child: TaskTile(
                           task: task,
+                          canComplete: false,
+                          isComplete: true,
                           onComplete: () {},
                           onEdit: () => _openEditor(context, task: task),
                           onDelete: () => _confirmDelete(context, task),

@@ -1,3 +1,6 @@
+import 'quest_type.dart';
+import 'recurrence_rule.dart';
+
 class Task {
   const Task({
     required this.id,
@@ -8,6 +11,9 @@ class Task {
     this.isCompleted = false,
     required this.createdAt,
     this.completedAt,
+    this.questType = QuestType.sideQuest,
+    this.recurrence,
+    this.completedDates = const [],
   });
 
   final String id;
@@ -18,6 +24,23 @@ class Task {
   final bool isCompleted;
   final DateTime createdAt;
   final DateTime? completedAt;
+  final QuestType questType;
+  final RecurrenceRule? recurrence;
+  final List<DateTime> completedDates;
+
+  bool get isHabit => questType == QuestType.habit;
+
+  bool hasCompletedOn(DateTime date) {
+    for (final completed in completedDates) {
+      if (_sameCalendarDay(completed, date)) {
+        return true;
+      }
+    }
+    if (isCompleted && completedAt != null) {
+      return _sameCalendarDay(completedAt!, date);
+    }
+    return false;
+  }
 
   Task copyWith({
     String? title,
@@ -29,6 +52,10 @@ class Task {
     bool? isCompleted,
     DateTime? completedAt,
     bool clearCompletedAt = false,
+    QuestType? questType,
+    RecurrenceRule? recurrence,
+    bool clearRecurrence = false,
+    List<DateTime>? completedDates,
   }) {
     return Task(
       id: id,
@@ -41,19 +68,26 @@ class Task {
       completedAt: clearCompletedAt
           ? null
           : (completedAt ?? this.completedAt),
+      questType: questType ?? this.questType,
+      recurrence: clearRecurrence ? null : (recurrence ?? this.recurrence),
+      completedDates: completedDates ?? this.completedDates,
     );
   }
 
   Map<String, dynamic> toJson() => {
-    'id': id,
-    'title': title,
-    'description': description,
-    'xpReward': xpReward,
-    'dueDate': dueDate?.toIso8601String(),
-    'isCompleted': isCompleted,
-    'createdAt': createdAt.toIso8601String(),
-    'completedAt': completedAt?.toIso8601String(),
-  };
+        'id': id,
+        'title': title,
+        'description': description,
+        'xpReward': xpReward,
+        'dueDate': dueDate?.toIso8601String(),
+        'isCompleted': isCompleted,
+        'createdAt': createdAt.toIso8601String(),
+        'completedAt': completedAt?.toIso8601String(),
+        'questType': questType.name,
+        'recurrence': recurrence?.toJson(),
+        'completedDates':
+            completedDates.map((date) => date.toIso8601String()).toList(),
+      };
 
   factory Task.fromJson(Map<String, dynamic> json) {
     return Task(
@@ -69,6 +103,9 @@ class Task {
       completedAt: json['completedAt'] != null
           ? DateTime.parse(json['completedAt'] as String)
           : null,
+      questType: _parseQuestType(json['questType']),
+      recurrence: _parseRecurrence(json['recurrence']),
+      completedDates: _parseDates(json['completedDates']),
     );
   }
 
@@ -83,7 +120,10 @@ class Task {
           dueDate == other.dueDate &&
           isCompleted == other.isCompleted &&
           createdAt == other.createdAt &&
-          completedAt == other.completedAt;
+          completedAt == other.completedAt &&
+          questType == other.questType &&
+          recurrence == other.recurrence &&
+          _datesEqual(completedDates, other.completedDates);
 
   @override
   int get hashCode => Object.hash(
@@ -95,5 +135,62 @@ class Task {
         isCompleted,
         createdAt,
         completedAt,
+        questType,
+        recurrence,
+        Object.hashAll(completedDates),
       );
+}
+
+QuestType _parseQuestType(Object? raw) {
+  if (raw is String) {
+    for (final value in QuestType.values) {
+      if (value.name == raw) {
+        return value;
+      }
+    }
+  }
+  return QuestType.sideQuest;
+}
+
+RecurrenceRule? _parseRecurrence(Object? raw) {
+  if (raw is Map<String, dynamic>) {
+    return RecurrenceRule.fromJson(raw);
+  }
+  if (raw is Map) {
+    return RecurrenceRule.fromJson(Map<String, dynamic>.from(raw));
+  }
+  return null;
+}
+
+List<DateTime> _parseDates(Object? raw) {
+  if (raw is! List) {
+    return const [];
+  }
+  final dates = <DateTime>[];
+  for (final item in raw) {
+    if (item is String) {
+      try {
+        dates.add(DateTime.parse(item));
+      } catch (_) {
+        // Skip malformed dates from older or partial backups.
+      }
+    }
+  }
+  return List<DateTime>.unmodifiable(dates);
+}
+
+bool _sameCalendarDay(DateTime a, DateTime b) {
+  return a.year == b.year && a.month == b.month && a.day == b.day;
+}
+
+bool _datesEqual(List<DateTime> a, List<DateTime> b) {
+  if (a.length != b.length) {
+    return false;
+  }
+  for (var i = 0; i < a.length; i++) {
+    if (a[i] != b[i]) {
+      return false;
+    }
+  }
+  return true;
 }

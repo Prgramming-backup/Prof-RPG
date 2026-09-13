@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../models/quest_type.dart';
 import '../models/task.dart';
 import '../services/date_display.dart';
 
@@ -10,18 +11,22 @@ class TaskTile extends StatelessWidget {
     required this.onComplete,
     required this.onEdit,
     required this.onDelete,
+    this.canComplete = true,
+    this.isComplete = false,
   });
 
   final Task task;
   final VoidCallback onComplete;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
+  final bool canComplete;
+  final bool isComplete;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
-    final completed = task.isCompleted;
+    final completed = isComplete || task.isCompleted;
     final overdue =
         !completed &&
         task.dueDate != null &&
@@ -35,8 +40,10 @@ class TaskTile extends StatelessWidget {
           children: [
             IconButton(
               key: Key('complete-task-${task.id}'),
-              tooltip: completed ? 'Completed' : 'Mark complete',
-              onPressed: completed ? null : onComplete,
+              tooltip: completed
+                  ? 'Completed'
+                  : (canComplete ? 'Mark complete' : 'Not due today'),
+              onPressed: canComplete ? onComplete : null,
               icon: Icon(
                 completed ? Icons.check_circle : Icons.radio_button_unchecked,
                 color: completed ? colors.primary : colors.onSurfaceVariant,
@@ -77,6 +84,19 @@ class TaskTile extends StatelessWidget {
                         icon: Icons.bolt,
                         label: '${task.xpReward} XP',
                       ),
+                      _MetaChip(
+                        icon: task.questType == QuestType.habit
+                            ? Icons.replay
+                            : Icons.flag_outlined,
+                        label: task.questType == QuestType.habit
+                            ? 'Habit'
+                            : 'Side Quest',
+                      ),
+                      if (task.isHabit && task.recurrence != null)
+                        _MetaChip(
+                          icon: Icons.schedule,
+                          label: task.recurrence!.displayLabel,
+                        ),
                       if (task.dueDate != null)
                         _MetaChip(
                           icon: Icons.event,

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../models/quest_type.dart';
+import '../models/recurrence_rule.dart';
 import '../models/task.dart';
 import '../services/date_display.dart';
 import '../services/task_validator.dart';
@@ -22,6 +24,11 @@ class _TaskEditorScreenState extends State<TaskEditorScreen> {
   late final TextEditingController _xpController;
   DateTime? _dueDate;
   var _submitted = false;
+  late QuestType _questType;
+  late RecurrenceKind _recurrenceKind;
+  late List<int> _weekdays;
+  late int _dayOfMonth;
+  var _customUsesMonthDay = true;
 
   bool get _isEditing => widget.task != null;
 
@@ -29,6 +36,7 @@ class _TaskEditorScreenState extends State<TaskEditorScreen> {
   void initState() {
     super.initState();
     final task = widget.task;
+    final now = DateTime.now();
     _titleController = TextEditingController(text: task?.title ?? '');
     _descriptionController = TextEditingController(
       text: task?.description ?? '',
@@ -37,6 +45,15 @@ class _TaskEditorScreenState extends State<TaskEditorScreen> {
       text: task == null ? '' : '${task.xpReward}',
     );
     _dueDate = task?.dueDate;
+    _questType = task?.questType ?? QuestType.sideQuest;
+    final recurrence = task?.recurrence;
+    _recurrenceKind = recurrence?.kind ?? RecurrenceKind.daily;
+    _weekdays = List<int>.from(
+      recurrence?.weekdays ?? [now.weekday],
+    );
+    _dayOfMonth = recurrence?.dayOfMonth ?? now.day;
+    _customUsesMonthDay =
+        recurrence == null || recurrence.dayOfMonth != null;
   }
 
   @override
@@ -45,6 +62,29 @@ class _TaskEditorScreenState extends State<TaskEditorScreen> {
     _descriptionController.dispose();
     _xpController.dispose();
     super.dispose();
+  }
+
+  RecurrenceRule? _buildRecurrence() {
+    if (_questType != QuestType.habit) {
+      return null;
+    }
+    switch (_recurrenceKind) {
+      case RecurrenceKind.daily:
+        return RecurrenceRule.daily;
+      case RecurrenceKind.weekly:
+        return RecurrenceRule.weekly(
+          _weekdays.isEmpty ? [DateTime.now().weekday] : _weekdays,
+        );
+      case RecurrenceKind.monthly:
+        return RecurrenceRule.monthly(_dayOfMonth);
+      case RecurrenceKind.custom:
+        if (_customUsesMonthDay) {
+          return RecurrenceRule.custom(dayOfMonth: _dayOfMonth);
+        }
+        return RecurrenceRule.custom(
+          weekdays: _weekdays.isEmpty ? [DateTime.now().weekday] : _weekdays,
+        );
+    }
   }
 
   Future<void> _pickDueDate() async {
@@ -75,12 +115,17 @@ class _TaskEditorScreenState extends State<TaskEditorScreen> {
       isCompleted: widget.task?.isCompleted ?? false,
       createdAt: widget.task?.createdAt ?? DateTime.now(),
       completedAt: widget.task?.completedAt,
+      questType: _questType,
+      recurrence: _buildRecurrence(),
+      completedDates: widget.task?.completedDates ?? const [],
     );
     Navigator.of(context).pop(draft);
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
       appBar: AppBar(
         title: Text(_isEditing ? 'Edit quest' : 'New quest'),
@@ -111,6 +156,131 @@ class _TaskEditorScreenState extends State<TaskEditorScreen> {
                 ),
                 validator: (value) => _validator.titleError(value ?? ''),
               ),
+              const SizedBox(height: 16),
+              Text(
+                'Quest Type',
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 8),
+              SegmentedButton<QuestType>(
+                key: const Key('quest-type-selector'),
+                showSelectedIcon: false,
+                style: const ButtonStyle(
+                  visualDensity: VisualDensity.compact,
+                ),
+                segments: const [
+                  ButtonSegment(
+                    value: QuestType.habit,
+                    label: Text('Habit'),
+                    icon: Icon(Icons.replay),
+                  ),
+                  ButtonSegment(
+                    value: QuestType.sideQuest,
+                    label: Text('Side Quest'),
+                    icon: Icon(Icons.flag_outlined),
+                  ),
+                ],
+                selected: {_questType},
+                onSelectionChanged: (selected) {
+                  setState(() => _questType = selected.first);
+                },
+              ),
+              const SizedBox(height: 8),
+              Text(
+                _questType == QuestType.habit
+                    ? 'Repeats on a schedule. Completing it today awards XP once and it returns when due again.'
+                    : 'One-time quest. Completing it awards XP and it stays finished.',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              if (_questType == QuestType.habit) ...[
+                const SizedBox(height: 20),
+                Text(
+                  'Repeat',
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                DropdownButtonFormField<RecurrenceKind>(
+                  key: const Key('recurrence-kind-field'),
+                  value: _recurrenceKind,
+                  decoration: const InputDecoration(
+                    labelText: 'Recurrence',
+                  ),
+                  items: const [
+                    DropdownMenuItem(
+                      value: RecurrenceKind.daily,
+                      child: Text('Daily'),
+                    ),
+                    DropdownMenuItem(
+                      value: RecurrenceKind.weekly,
+                      child: Text('Weekly'),
+                    ),
+                    DropdownMenuItem(
+                      value: RecurrenceKind.monthly,
+                      child: Text('Monthly'),
+                    ),
+                    DropdownMenuItem(
+                      value: RecurrenceKind.custom,
+                      child: Text('Custom'),
+                    ),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) {
+                      setState(() => _recurrenceKind = value);
+                    }
+                  },
+                ),
+                if (_recurrenceKind == RecurrenceKind.weekly) ...[
+                  const SizedBox(height: 12),
+                  _WeekdayPicker(
+                    selected: _weekdays,
+                    onChanged: (days) => setState(() => _weekdays = days),
+                  ),
+                ],
+                if (_recurrenceKind == RecurrenceKind.monthly) ...[
+                  const SizedBox(height: 12),
+                  _DayOfMonthPicker(
+                    day: _dayOfMonth,
+                    onChanged: (day) => setState(() => _dayOfMonth = day),
+                  ),
+                ],
+                if (_recurrenceKind == RecurrenceKind.custom) ...[
+                  const SizedBox(height: 12),
+                  SegmentedButton<bool>(
+                    key: const Key('custom-recurrence-mode'),
+                    segments: const [
+                      ButtonSegment(
+                        value: true,
+                        label: Text('Day of month'),
+                      ),
+                      ButtonSegment(
+                        value: false,
+                        label: Text('Days of week'),
+                      ),
+                    ],
+                    selected: {_customUsesMonthDay},
+                    onSelectionChanged: (selected) {
+                      setState(() => _customUsesMonthDay = selected.first);
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  if (_customUsesMonthDay)
+                    _DayOfMonthPicker(
+                      day: _dayOfMonth,
+                      onChanged: (day) => setState(() => _dayOfMonth = day),
+                    )
+                  else
+                    _WeekdayPicker(
+                      selected: _weekdays,
+                      onChanged: (days) => setState(() => _weekdays = days),
+                    ),
+                ],
+              ],
               const SizedBox(height: 16),
               TextFormField(
                 key: const Key('task-description-field'),
@@ -158,6 +328,86 @@ class _TaskEditorScreenState extends State<TaskEditorScreen> {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _WeekdayPicker extends StatelessWidget {
+  const _WeekdayPicker({
+    required this.selected,
+    required this.onChanged,
+  });
+
+  final List<int> selected;
+  final ValueChanged<List<int>> onChanged;
+
+  static const _days = [
+    (DateTime.monday, 'Mon'),
+    (DateTime.tuesday, 'Tue'),
+    (DateTime.wednesday, 'Wed'),
+    (DateTime.thursday, 'Thu'),
+    (DateTime.friday, 'Fri'),
+    (DateTime.saturday, 'Sat'),
+    (DateTime.sunday, 'Sun'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        for (final day in _days)
+          FilterChip(
+            key: Key('weekday-${day.$1}'),
+            label: Text(day.$2),
+            selected: selected.contains(day.$1),
+            onSelected: (isSelected) {
+              final next = [...selected];
+              if (isSelected) {
+                if (!next.contains(day.$1)) {
+                  next.add(day.$1);
+                }
+              } else {
+                next.remove(day.$1);
+              }
+              onChanged(next);
+            },
+          ),
+      ],
+    );
+  }
+}
+
+class _DayOfMonthPicker extends StatelessWidget {
+  const _DayOfMonthPicker({
+    required this.day,
+    required this.onChanged,
+  });
+
+  final int day;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return DropdownButtonFormField<int>(
+      key: const Key('day-of-month-field'),
+      value: day,
+      decoration: const InputDecoration(
+        labelText: 'Day of month',
+      ),
+      items: [
+        for (var i = 1; i <= 31; i++)
+          DropdownMenuItem(
+            value: i,
+            child: Text('$i'),
+          ),
+      ],
+      onChanged: (value) {
+        if (value != null) {
+          onChanged(value);
+        }
+      },
     );
   }
 }

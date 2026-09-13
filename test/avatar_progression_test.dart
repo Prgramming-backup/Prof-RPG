@@ -156,9 +156,56 @@ void main() {
       expect(find.text('Yoyaimo'), findsOneWidget);
       expect(find.text('Level 1'), findsOneWidget);
       expect(find.text('Evolution Progress'), findsOneWidget);
+      expect(find.byKey(const Key('avatar-evolution-percent')), findsOneWidget);
       expect(find.text('0%'), findsOneWidget);
       expect(find.text('Next evolution: '), findsOneWidget);
       expect(find.text('Karen'), findsOneWidget);
+
+      final bar = tester.widget<SizedBox>(
+        find.byKey(const Key('avatar-evolution-bar')),
+      );
+      expect(bar.width, 0);
+    });
+
+    testWidgets('avatar percent and bar use the same AvatarEngine progress',
+        (tester) async {
+      tester.view.physicalSize = const Size(800, 1200);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final now = DateTime(2026, 9, 12, 10);
+      final controller = TaskController(
+        InMemoryTaskRepository(clock: () => now),
+        clock: () => now,
+      );
+      controller.createTask(title: 'Level up', xpReward: 100);
+      controller.completeTask(controller.activeTasks.first.id, completedAt: now);
+
+      await tester.pumpWidget(
+        TaskScope(
+          controller: controller,
+          child: const MaterialApp(home: CharacterScreen()),
+        ),
+      );
+
+      const engine = AvatarEngine();
+      final expected = engine.progressionFor(controller.levelProgress.level);
+      final percent = (expected.progress * 100).toStringAsFixed(0);
+
+      expect(controller.avatarProgression, expected);
+      expect(find.text('Level ${expected.level}'), findsOneWidget);
+      expect(
+        tester.widget<Text>(find.byKey(const Key('avatar-evolution-percent'))).data,
+        '$percent%',
+      );
+
+      final trackWidth =
+          tester.getSize(find.byKey(const Key('avatar-evolution-track'))).width;
+      final bar = tester.widget<SizedBox>(
+        find.byKey(const Key('avatar-evolution-bar')),
+      );
+      expect(bar.width, closeTo(trackWidth * expected.progress, 0.5));
     });
   });
 }

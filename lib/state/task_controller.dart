@@ -1,10 +1,13 @@
 import 'package:flutter/foundation.dart';
 
 import '../models/avatar_progression.dart';
+import '../models/quest_type.dart';
+import '../models/recurrence_rule.dart';
 import '../models/task.dart';
 import '../models/xp_transaction.dart';
 import '../services/avatar_engine.dart';
 import '../services/level_engine.dart';
+import '../services/recurrence_engine.dart';
 import '../services/streak_engine.dart';
 import '../services/task_repository.dart';
 import '../services/xp_completion_id.dart';
@@ -17,11 +20,13 @@ class TaskController extends ChangeNotifier {
     StreakEngine? streakEngine,
     LevelEngine? levelEngine,
     AvatarEngine? avatarEngine,
+    RecurrenceEngine? recurrenceEngine,
     DateTime Function()? clock,
   }) : _xpLedger = xpLedger ?? InMemoryXpLedger(),
        _streakEngine = streakEngine ?? const StreakEngine(),
        _levelEngine = levelEngine ?? const LevelEngine(),
        _avatarEngine = avatarEngine ?? const AvatarEngine(),
+       _recurrenceEngine = recurrenceEngine ?? const RecurrenceEngine(),
        _clock = clock ?? DateTime.now;
 
   final TaskRepository _repository;
@@ -29,15 +34,30 @@ class TaskController extends ChangeNotifier {
   final StreakEngine _streakEngine;
   final LevelEngine _levelEngine;
   final AvatarEngine _avatarEngine;
+  final RecurrenceEngine _recurrenceEngine;
   final DateTime Function() _clock;
 
   List<Task> get tasks => _repository.getAll();
 
-  List<Task> get activeTasks =>
-      tasks.where((task) => !task.isCompleted).toList(growable: false);
+  List<Task> get activeTasks {
+    final now = _clock();
+    return tasks.where((task) {
+      if (task.isHabit) {
+        return !task.hasCompletedOn(now);
+      }
+      return !task.isCompleted;
+    }).toList(growable: false);
+  }
 
-  List<Task> get completedTasks =>
-      tasks.where((task) => task.isCompleted).toList(growable: false);
+  List<Task> get completedTasks {
+    final now = _clock();
+    return tasks.where((task) {
+      if (task.isHabit) {
+        return task.hasCompletedOn(now);
+      }
+      return task.isCompleted;
+    }).toList(growable: false);
+  }
 
   bool get isEmpty => tasks.isEmpty;
 
@@ -49,6 +69,10 @@ class TaskController extends ChangeNotifier {
       _avatarEngine.progressionFor(levelProgress.level);
 
   List<XpTransaction> get xpTransactions => _xpLedger.transactions;
+
+  bool canComplete(Task task, [DateTime? at]) {
+    return _recurrenceEngine.canComplete(task, at ?? _clock());
+  }
 
   StreakInfo streakInfo([DateTime? today]) {
     final dates = _completionDates.toList(growable: false);
@@ -67,12 +91,16 @@ class TaskController extends ChangeNotifier {
     String? description,
     required int xpReward,
     DateTime? dueDate,
+    QuestType questType = QuestType.sideQuest,
+    RecurrenceRule? recurrence,
   }) {
     final task = _repository.create(
       title: title.trim(),
       description: description,
       xpReward: xpReward,
       dueDate: dueDate,
+      questType: questType,
+      recurrence: recurrence,
     );
     notifyListeners();
     return task;
@@ -85,11 +113,13 @@ class TaskController extends ChangeNotifier {
   }
 
   Task completeTask(String id, {DateTime? completedAt}) {
-    final completed = _repository.complete(
-      id,
-      completedAt: completedAt ?? _clock(),
-    );
-    _awardXpFor(completed);
+    final at = completedAt ?? _clock();
+    final current = tasks.firstWhere((task) => task.id == id);
+    if (!_recurrenceEngine.canComplete(current, at)) {
+      return current;
+    }
+    final completed = _repository.complete(id, completedAt: at);
+    _awardXpFor(completed, awardedAt: at);
     notifyListeners();
     return completed;
   }
@@ -133,19 +163,15 @@ class TaskController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void _awardXpFor(Task task) {
-    final completedAt = task.completedAt;
-    if (!task.isCompleted || completedAt == null) {
-      return;
-    }
-    final completionId = _completionIdOf(task);
+  void _awardXpFor(Task task, {required DateTime awardedAt}) {
+    final completionId = _completionIdOf(task, at: awardedAt);
     if (completionId == null) {
       return;
     }
 
     final streakInfo = _streakEngine.calculate(
       completionDates: _completionDates,
-      today: completedAt,
+      today: awardedAt,
     );
     final multiplier = streakInfo.currentMultiplier;
 
@@ -154,13 +180,15 @@ class TaskController extends ChangeNotifier {
       baseXp: task.xpReward,
       completionId: completionId,
       multiplier: multiplier,
-      timestamp: completedAt,
+      timestamp: awardedAt,
     );
   }
 
   Iterable<DateTime> get _completionDates sync* {
     for (final t in tasks) {
-      if (t.isCompleted && t.completedAt != null) {
+      if (t.isHabit) {
+        yield* t.completedDates;
+      } else if (t.isCompleted && t.completedAt != null) {
         yield t.completedAt!;
       }
     }
@@ -171,8 +199,18 @@ class TaskController extends ChangeNotifier {
     }
   }
 
-  String? _completionIdOf(Task task) {
-    final completedAt = task.completedAt;
+  String? _completionIdOf(Task task, {DateTime? at}) {
+    if (task.isHabit) {
+      final occurrenceAt = at ?? task.completedAt;
+      if (occurrenceAt == null) {
+        return null;
+      }
+      return xpOccurrenceCompletionId(
+        taskId: task.id,
+        completedAt: occurrenceAt,
+      );
+    }
+    final completedAt = at ?? task.completedAt;
     if (!task.isCompleted || completedAt == null) {
       return null;
     }
