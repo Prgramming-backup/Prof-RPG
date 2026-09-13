@@ -105,8 +105,31 @@ class TaskController extends ChangeNotifier {
     return reopened;
   }
 
+  /// Triggers a UI refresh by notifying all listeners.
+  ///
+  /// Call this after external async operations (e.g. loading from persistence)
+  /// complete to rebuild the widget tree with updated data.
+  void refresh() => notifyListeners();
+
   void deleteTask(String id) {
     _repository.delete(id);
+    notifyListeners();
+  }
+
+  /// Restores complete task and XP transaction history (e.g. from a local backup),
+  /// updates underlying persistence, recalculates all derived states, and notifies listeners.
+  Future<void> restoreProgress({
+    required List<Task> tasks,
+    required List<XpTransaction> xpTransactions,
+  }) async {
+    final repoResult = _repository.replaceAll(tasks);
+    if (repoResult is Future) {
+      await repoResult;
+    }
+    final ledgerResult = _xpLedger.replaceAll(xpTransactions);
+    if (ledgerResult is Future) {
+      await ledgerResult;
+    }
     notifyListeners();
   }
 

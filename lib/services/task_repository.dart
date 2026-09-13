@@ -17,6 +17,8 @@ abstract class TaskRepository {
   Task uncomplete(String id);
 
   void delete(String id);
+
+  dynamic replaceAll(List<Task> tasks);
 }
 
 class InMemoryTaskRepository implements TaskRepository {
@@ -24,6 +26,7 @@ class InMemoryTaskRepository implements TaskRepository {
     : _clock = clock ?? DateTime.now {
     if (seed != null) {
       _tasks.addAll(seed);
+      _syncNextId();
     }
   }
 
@@ -96,6 +99,26 @@ class InMemoryTaskRepository implements TaskRepository {
   void delete(String id) {
     final index = _indexOf(id);
     _tasks.removeAt(index);
+  }
+
+  @override
+  void replaceAll(List<Task> tasks) {
+    _tasks.clear();
+    _tasks.addAll(tasks);
+    _syncNextId();
+  }
+
+  void _syncNextId() {
+    var maxId = 0;
+    for (final task in _tasks) {
+      if (task.id.startsWith('task_')) {
+        final parsed = int.tryParse(task.id.substring(5));
+        if (parsed != null && parsed > maxId) {
+          maxId = parsed;
+        }
+      }
+    }
+    _nextId = maxId + 1;
   }
 
   int _indexOf(String id) {

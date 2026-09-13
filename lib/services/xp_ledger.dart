@@ -24,6 +24,8 @@ abstract class XpLedger {
   });
 
   XpTransaction? reverseForCompletion(String completionId);
+
+  dynamic replaceAll(List<XpTransaction> transactions);
 }
 
 class InMemoryXpLedger implements XpLedger {
@@ -96,6 +98,26 @@ class InMemoryXpLedger implements XpLedger {
     final reversed = _transactions[index].reversedCopy();
     _transactions[index] = reversed;
     return reversed;
+  }
+
+  @override
+  void replaceAll(List<XpTransaction> transactions) {
+    _transactions.clear();
+    _transactions.addAll(transactions);
+    _syncNextId();
+  }
+
+  void _syncNextId() {
+    var maxId = 0;
+    for (final tx in _transactions) {
+      if (tx.id.startsWith('xp_')) {
+        final parsed = int.tryParse(tx.id.substring(3));
+        if (parsed != null && parsed > maxId) {
+          maxId = parsed;
+        }
+      }
+    }
+    _nextId = maxId + 1;
   }
 
   bool _hasActiveAward(String completionId) {

@@ -12,6 +12,10 @@ Future<void> pumpCharacterScreen(
   WidgetTester tester,
   TaskController controller,
 ) async {
+  tester.view.physicalSize = const Size(800, 1200);
+  tester.view.devicePixelRatio = 1.0;
+  addTearDown(tester.view.resetPhysicalSize);
+  addTearDown(tester.view.resetDevicePixelRatio);
   await tester.pumpWidget(
     TaskScope(
       controller: controller,
