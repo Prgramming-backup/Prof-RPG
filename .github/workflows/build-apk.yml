@@ -1,9 +1,9 @@
-name: Build Flutter APK
+name: Build APK
 
 on:
   push:
     branches:
-      - UI
+      - Main
   workflow_dispatch:
 
 jobs:
@@ -11,12 +11,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Flutter
+      - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
+          flutter-version: '3.35.0'
           channel: stable
 
       - name: Install dependencies
@@ -25,13 +26,8 @@ jobs:
       - name: Build APK
         run: flutter build apk --release
 
-      - name: Rename APK
-        run: |
-          mv build/app/outputs/flutter-apk/app-release.apk \
-             build/app/outputs/flutter-apk/prod.apk
-
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: MyApp
-          path: build/app/outputs/flutter-apk/MyApp.apk
+          name: app-release
+          path: build/app/outputs/flutter-apk/app-release.apk
